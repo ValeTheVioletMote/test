@@ -37,10 +37,20 @@ var app = {
 		this.onUpdate(dt);
 
 		for(var index in this.nodes){
-			var node = this.nodes[index];
 
+			var node = this.nodes[index];
+			// Assume rectangle by default
 			this.context.fillStyle = node.color;
-			this.context.fillRect(node.x, node.y, node.width, node.height);
+			if(node.shape == "Circle") {
+				this.context.beginPath();
+				this.context.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+				this.context.stroke();
+				this.context.fill();
+				this.context.closePath();
+			}else{
+				this.context.fillRect(node.x, node.y, node.width, node.height);
+			}
+			
 		}
 
 		this.lastUpdate = Date.now();
