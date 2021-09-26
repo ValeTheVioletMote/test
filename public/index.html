@@ -250,6 +250,8 @@
 			return {
 				move: move_node
 			,	bounce
+			,	bounce_biased
+			,	bounce_hard
 			,	process_velocity
 			,	get_vel_xy: get_velocity
 			,	set_xy_vel: set_velocity
@@ -293,7 +295,6 @@
 			},
 			Ball: {
 				node_name: "ball-circle"
-			,	last_touched_by: null
 			},
 			/** 
 			 * Adjust both the canvas and the app to resize the game.
