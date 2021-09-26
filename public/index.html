@@ -34,8 +34,29 @@
 			app.clear();
 			// TODO: adjust app nodes accordingly.
 		}
+		var build_NodeUtil = ((app) => {
+
+		});
+		/**@type{ReturnType<build_NodeUtil>}*/
+		var NodeUtil;
 
 		app.onInit = function(){
+
+			// Call to update canvas/app to new size. Declared here to lock in app as `this` to the scope.
+			// We're also only using this once elsewhere, in the below event declaration.
+			let update_size_to_viewport = () => resize_game(this, window.visualViewport.height-BODY_MARGIN, window.visualViewport.width-BODY_MARGIN);
+			update_size_to_viewport();
+			// onInit will only be called once so declaring this event here is safe.
+			window.addEventListener("resize", update_size_to_viewport);
+
+			// I recognize that I could have created this earlier by referencing `app` directly in the global scope,
+			// but here I am preparing for the possibility that I am not 'ready' until I am in an init function.
+			// Same reason I capture `this` in update_size_to_viewport.
+			// Ultimately, I build NodeUtil here because of the requirement to not touch app.js 
+			// (and by extension, safe-assumedly, not extending the app global var itself)
+			NodeUtil = build_NodeUtil(this);
+
+
 			this.nodes.push({
 				id : 'red-box',
 				x  : 100,
