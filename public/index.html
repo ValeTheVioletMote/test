@@ -5,9 +5,21 @@
 </head>
 <body>
 	<canvas id="canvas" width="800" height="400"></canvas>
+	<style>
+		/**
+			Overflow being hidden prevents the presence of a scrollbar in a resizable, fullscreen game.
+		*/
+		body {
+			overflow: hidden;
+		}
+	</style>
+		
 	<script type="text/javascript" src="js/app.js"></script>
 	<script type="text/javascript">
-		//Sample functions, remove these functions and design ping-pong game with onInit and onUpdate.
+		// Apply a margin to the body that can be accounted for programatically.
+		const BODY_MARGIN = 10;
+		document.querySelector("body").style.margin = BODY_MARGIN+"px";
+
 
 		app.onInit = function(){
 			this.nodes.push({
