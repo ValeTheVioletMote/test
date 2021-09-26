@@ -20,6 +20,12 @@
 		const BODY_MARGIN = 10;
 		document.querySelector("body").style.margin = BODY_MARGIN+"px";
 
+		/**
+		 * @typedef {{id: string, x: number, y: number, width: number
+		 * , height: number, color: string}} AppNode
+		 * @typedef {AppNode & {traj_x: number, traj_y: number}} MovingNode
+		 * */
+
 
 		/** 
 		 * Adjust both the canvas and the app to resize the game.
