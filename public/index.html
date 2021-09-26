@@ -25,6 +25,10 @@
 		 * , color: string, node_collides: boolean}  
 		 * & ({shape: "Rectangle", width: number, height: number} | {shape: "Circle", radius: number} )} AppNode
 		 * @typedef {AppNode & {vel_x: number, vel_y: number}} MovingNode
+		 * @typedef {{prop_x: number, prop_y: number, prop_min_x: number
+		 * , prop_min_y: number, prop_max_x: number, prop_max_y: number
+		 * , min_x: number, min_y: number, max_x: number, max_y: number
+		 * , other_width: number, other_height: number}} NodeCollisionDetail
 		 * */
 
 
@@ -174,7 +178,7 @@
 
 		var Game = {
 			Settings: {
-				speed: {players:3, ball: 1}
+				speed: {players:15, ball: 10}
 			},
 			/**@type{Player}*/
 			PlayerLeft: {
@@ -308,7 +312,6 @@
 					let n = Game.get_player_node(this, m_cri.player);
 					NodeUtil.set_xy_vel(n, {y: dirnum*psf});
 				}
-
 			})
 
 
@@ -359,7 +362,8 @@
 				radius: 10,
 				color: 'green',
 				node_collides: true,
-				vel_x: 1
+				vel_x: 1*Game.Settings.speed.ball,
+				vel_y: 0
 			})
 
 			Game.reset_all_positions(this);
