@@ -69,7 +69,7 @@
 			 * Attempt to move a node. Send back data for success or failure.
 			 * @param {AppNode} node
 			 * @param {XY_Adjustment} xyadj
-			 * @returns {{c: "MOVED"} | {c: "STAYED", reason: CollisionReason}}
+			 * @returns {{c: "MOVED"} | {c: "COLLIDED", reason: CollisionReason}}
 			 **/
 			function move_node(node, xyadj) {
 				let m_collision = will_node_collide(node, xyadj);
@@ -114,10 +114,21 @@
 			function get_velocity(movode) {
 				return {x: movode.vel_x, y: movode.vel_y};
 			}
+			/**
+			 * @param {MovingNode} movode 
+			 * @param {{x: number, y: number}} new_velocity */
+			function set_velocity(movode, {x,y}) {
+				movode.vel_x = x;
+				movode.vel_y = y;
 			}
+
 			return {
 				will_collide_q : will_node_collide
 			,	move: move_node
+			,	bounce
+			,	process_velocity
+			,	get_vel_xy: get_velocity
+			,	set_xy_vel: set_velocity
 			}
 		});
 		/**@type{ReturnType<build_NodeUtil>}*/
