@@ -95,14 +95,14 @@
 			 * @param {AppNode} node
 			 * @param {XY_Adjustment} xyadj
 			 * @param {boolean} check_node_collide
-			 * @returns {{c: "MOVED"} | {c: "OUT_OF_BOUNDS" | "NODE_COLLISION", reason: CollisionReason}}
+			 * @returns {{c: "MOVED"} | {c: "OUT_OF_BOUNDS", reason: CollisionReason} | {c: "NODE_COLLISION",  detail: NodeCollisionDetail }}
 			 **/
 			function move_node(node, xyadj) {
 				let m_outofbounds = will_bounds_collide(node, xyadj);
 				if(m_outofbounds.c == "NO") {
 					let m_node_collision = node.node_collides ? will_node_collide(node, xyadj) : {c: /**@type{"NO"}*/("NO")};
 					if(m_node_collision.c == "YES") {
-						return {c: "NODE_COLLISION", reason: m_node_collision.reason};
+						return {c: "NODE_COLLISION", detail: m_node_collision.detail};
 					}
 					node.x += (xyadj.x ?? 0);
 					node.y += (xyadj.y ?? 0);
@@ -132,7 +132,13 @@
 			 * @param {XY_Adjustment} xyadj
 			 * @param {CollisionReason} collision_reason
 			 * */
-			function bounce(node, xyadj, collision_reason) {
+			function bounce(node, collision_reason) {
+				let xyadj = NodeUtil.get_vel_xy(node);
+				let new_x = collision_reason == "BOTH" || collision_reason == "X" ? -xyadj.x : xyadj.x,
+					new_y = collision_reason == "BOTH" || collision_reason == "Y" ? -xyadj.y : xyadj.y;
+				let new_velocity = {x: new_x, y: new_y};
+				return {move_result: move_node(node, new_velocity), new_velocity};
+			}
 				let new_x = collision_reason == "BOTH" || collision_reason == "X" ? -xyadj.x : xyadj.x,
 					new_y = collision_reason == "BOTH" || collision_reason == "Y" ? -xyadj.y : xyadj.y;
 				let new_velocity = {x: new_x, y: new_y};
