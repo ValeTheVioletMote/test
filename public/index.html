@@ -136,6 +136,36 @@
 
 		app.onInit = function(){
 
+
+			// My edits to app that are not, as part of the readme instructions, permitted to be added to app.js
+
+			this.paused = false;
+			this.pause = function pause_app() {
+				this.paused = true;
+			}
+			this.unpause = function unpause_app() {
+				this.paused = false;
+			}
+			this.toggle_pause = function toggle_app_pause() {
+				this.paused ? this.unpause() : this.pause();
+			}
+
+			// Edits to app end.
+
+			document.addEventListener("keyup", (e) => {
+				if(e.code == "Space") {
+					// `this` is not the event because of how arrow functions mingle in the lexical scoping world.
+					this.toggle_pause();
+				}
+			})
+
+			document.addEventListener("keydown", (e) => {
+				if(e.repeat) return;
+
+			})
+
+
+
 			// Call to update canvas/app to new size. Declared here to lock in app as `this` to the scope.
 			// We're also only using this once elsewhere, in the below event declaration.
 			let update_size_to_viewport = () => resize_game(this, window.visualViewport.height-BODY_MARGIN, window.visualViewport.width-BODY_MARGIN);
