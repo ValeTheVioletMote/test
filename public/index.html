@@ -42,6 +42,28 @@
 		}
 		var build_NodeUtil = ((app) => {
 
+			/**
+			 * @typedef {{x: number | undefined, y: number | undefined}} XY_Adjustment -- X & Y adjustments proposed. For ease of use, undeclared=0.
+			 * @typedef {"X" | "Y" | "BOTH"} CollisionReason
+			*/
+			/**
+			 * Will Collide? Check if the proposed changes to the node will cause a collision.
+			 * @param {{height: number, width: number}} app -- We're highlighting the pieces we pull from the app.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @returns {{c: "YES", reason: CollisionReason} | {c: "NO"}}
+			 * */
+			function will_node_collide(node, xyadj) {
+				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0);
+				/**@type{{width: number, height: number}}*/
+				let {width: app_x, height: app_y} = app;
+				let x_failed = (prop_x < 0 || prop_x+node.width > app_x)
+				, 	y_failed = (prop_y < 0 || prop_y+node.height > app_y);
+				return (x_failed && y_failed ? {c: "YES", reason: "BOTH"} 
+							: x_failed ? {c: "YES", reason: "X"} 
+							: y_failed ? {c: "YES", reason: "Y"} 
+							: {c: "NO"});
+			}
 		});
 		/**@type{ReturnType<build_NodeUtil>}*/
 		var NodeUtil;
