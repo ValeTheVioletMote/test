@@ -78,8 +78,42 @@
 					node.y += (xyadj.y ?? 0);
 					return {c: "MOVED"};
 				}else{
-					return {c: "STAYED", reason: m_collision.reason};
+					return {c: "COLLIDED", reason: m_collision.reason};
 				}
+			}
+
+
+			/**
+			 * Move based on "velocity".
+			 * @param {MovingNode} movode
+			 **/
+			function process_velocity(movode) {
+				let {vel_x, vel_y} = movode;
+				if(vel_x == 0 && vel_y == 0) return {c: /**@type{"STATIONARY"}*/("STATIONARY")};
+
+				return move_node(movode, {x: vel_x, y: vel_y});
+				// For an interesting idea later, have a 'resistance' property that proposes a new momentum/velocity if force (keypress) isn't being applied anymore?
+			}
+
+			/**
+			 * Create a movement using the 'velocity' from the attempted xyadj
+			 * by 'bouncing' where the collision was detected.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @param {CollisionReason} collision_reason
+			 * */
+			function bounce(node, xyadj, collision_reason) {
+				let new_x = collision_reason == "BOTH" || collision_reason == "X" ? -xyadj.x : xyadj.x,
+					new_y = collision_reason == "BOTH" || collision_reason == "Y" ? -xyadj.y : xyadj.y;
+				let new_velocity = {x: new_x, y: new_y};
+				return {move_result: move_node(node, new_velocity), new_velocity};
+			}
+
+			/**
+			 * @param {MovingNode} movode */
+			function get_velocity(movode) {
+				return {x: movode.vel_x, y: movode.vel_y};
+			}
 			}
 			return {
 				will_collide_q : will_node_collide
