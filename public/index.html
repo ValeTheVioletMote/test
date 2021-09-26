@@ -21,8 +21,8 @@
 		document.querySelector("body").style.margin = BODY_MARGIN+"px";
 
 		/**
-		 * @typedef {{id: string, x: number, y: number, width: number
-		 * , height: number, color: string}} AppNode
+		 * @typedef {{id: string, x: number, y: number
+		 * , color: string}  & ({shape: "Rectangle", width: number, height: number} | {shape: "Circle", radius: number} )} AppNode
 		 * @typedef {AppNode & {vel_x: number, vel_y: number}} MovingNode
 		 * */
 
