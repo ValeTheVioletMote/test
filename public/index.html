@@ -143,9 +143,46 @@
 				let new_velocity = {x: new_x, y: new_y};
 				return {move_result: move_node(node, new_velocity), new_velocity};
 			}
-				let new_x = collision_reason == "BOTH" || collision_reason == "X" ? -xyadj.x : xyadj.x,
-					new_y = collision_reason == "BOTH" || collision_reason == "Y" ? -xyadj.y : xyadj.y;
-				let new_velocity = {x: new_x, y: new_y};
+
+			/**
+			 * A variant of bounce that biases the node toward velocity on the axis of their choice.
+			 * @param {AppNode} node
+			 * @param {"x" | "y"} bias_axis
+			 * @param {CollisionReason} collision_reason
+			 * @param {number} bias_strength -- Keep at least 5. This is the nth fraction of velocity carved away from the unbiased. i.e., 5 = 1/5.
+			 **/
+			function bounce_biased(node, bias_axis, collision_reason, bias_strength=10) {
+				const xyadj = NodeUtil.get_vel_xy(node);
+				const x_sign = xyadj.x > 0 ? "POS" : "NEG"
+					, y_sign = xyadj.y > 0 ? "POS": "NEG";
+				const flip_sign = (sign) => sign == "POS" ? "NEG" : "POS";
+				let signs = {x: x_sign, y: y_sign};
+
+				console.log({x_sign, y_sign});
+
+				if(collision_reason == "BOTH") {
+					signs.x = flip_sign(x_sign); 
+					signs.y = flip_sign(y_sign);
+				} else if (collision_reason == "X") {
+					signs.x  = flip_sign(x_sign);
+				} else {
+					signs.y = flip_sign(y_sign);
+				}
+				const absv = {
+					x: Math.abs(xyadj.x)
+				,	y: Math.abs(xyadj.y)
+				};
+				console.log(signs);
+				const total_velocity = absv.x+absv.y;
+				// Slide {bias_strength}% of the unbiased velocity over to the biased.
+				let inv_bias = bias_axis == "x" ? "y": "x";
+				let shifting_velocity = absv[inv_bias]/bias_strength;
+
+				let new_velocity = {};
+				let new_biased_velocity_absv = absv[bias_axis]+shifting_velocity;
+				new_velocity[bias_axis] = new_biased_velocity_absv*(signs[bias_axis] == "POS" ? 1 : -1);
+				new_velocity[inv_bias] = (total_velocity-new_biased_velocity_absv)*(signs[inv_bias] == "POS" ? 1 : -1);
+				console.log(new_velocity)
 				return {move_result: move_node(node, new_velocity), new_velocity};
 			}
 
@@ -172,7 +209,7 @@
 				let y_fmw = Math.ceil(100/half_rect_height*(y-half_rect_height-min_y));
 				let half_rect_width = rect_width*0.5;
 				let x_fmw = from_middle_wgt = Math.ceil(100/half_rect_width*(x-half_rect_width-min_x));
-				console.log({half_rect_height, half_rect_width, x, min_x, y, min_y, y_fmw, x_fmw});
+				// console.log({half_rect_height, half_rect_width, x, min_x, y, min_y, y_fmw, x_fmw});
 				/**@type{"Y" | "X"}*/
 				let surface = Math.abs(y_fmw) < Math.abs(x_fmw) ? "Y" : "X";
 				if(surface == "Y") {
@@ -187,12 +224,9 @@
 
 				// The 'from_middle_wgt' determines the weight that is stolen from the total velocity.
 				// Since we don't want it to completely deadpan movement, it only gets a 90% share of the velocity, max.
-				console.log({total_velocity, from_middle_wgt});
 				let surface_axis_velocity = Math.floor(0.9*total_velocity*from_middle_wgt/10)/10;
-				console.log({surface_axis_velocity})
 				// Dump the rest into the violation axis velocity & give it a flip.
 				let violation_axis_velocity = (total_velocity-Math.abs(surface_axis_velocity))*(violation_sign == "POS" ? -1 : 1);
-				console.log({violation_axis_velocity});
 
 				/**@type{{x: number, y: number}}*/
 				let new_velocity = {};
@@ -453,7 +487,7 @@
 				NodeUtil.set_xy_vel(ball_n, new_velocity);
 			}else if(m_ball_move.c == "OUT_OF_BOUNDS") {
 				if(m_ball_move.reason == "Y") {
-					let {new_velocity} = NodeUtil.bounce(ball_n, m_ball_move.reason);
+					let {new_velocity} = NodeUtil.bounce_biased(ball_n, "x", m_ball_move.reason, 10);
 					NodeUtil.set_xy_vel(ball_n, new_velocity);
 				}else{
 					// Point
