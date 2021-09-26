@@ -59,28 +59,32 @@
 			 * @param {nodes: Array<AppNode>} app
 			 * @param {AppNode} node
 			 * @param {XY_Adjustment} xyadj
-			 * @returns {{c: "YES", reason: CollisionReason} | {c: "NO"}}
+			 * @returns {{c: "YES", detail: NodeCollisionDetail } 
+			 * | {c: "NO"}}
 			*/
 			function will_node_collide(node, xyadj) {
 				/**@type{Array<AppNode>}*/
 				let nodes = app.nodes;
 				
-				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0), radius = node.radius;
+				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0)
+					, radius = node.radius, height = node.height, width = node.width;
 				for(let x=0;x<=nodes.length;x++) {
 					let other = nodes[x];
 					if(other.id == node.id) {x++ ; continue;}
 					let min_x = other.x, max_x = min_x+other.width
-					,	min_y = other.y, max_y = min_y+other.length;
+					,	min_y = other.y, max_y = min_y+other.height;
 
-					let x_failed = prop_x+radius >= min_x && prop_x-radius <= max_x
-					,	y_failed = prop_y+radius >= min_y && prop_y-radius <= max_y;
+					let prop_width = node.width ?? radius, prop_height = node.height ?? radius;
+
+					let prop_min_x = prop_x-prop_width, prop_max_x = prop_x+prop_width
+					,	prop_min_y = prop_y-prop_height, prop_max_y = prop_y+prop_height
+
+					let x_failed = prop_max_x >= min_x && prop_min_x <= max_x
+					,	y_failed = prop_max_y >= min_y && prop_min_y <= max_y;
 
 					if(x_failed && y_failed) {
-						return {c: "YES", reason: "BOTH"};
-					}else if(x_failed) {
-						return {c: "YES", reason: "X"};
-					}else if(y_failed) {
-						return {c: "YES", reason: "Y"};
+						return {c: "YES", detail: {prop_x, prop_y, prop_min_x, prop_min_y
+							, prop_max_x, prop_max_y, min_x, min_y, max_x, max_y, other_width: other.width, other_height: other.height}};
 					}
 				}
 				return {c: "NO"};
