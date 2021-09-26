@@ -292,17 +292,6 @@
 					NodeUtil.set_xy_vel(player_node, {y: 0});
 				}
 			}
-
-			/**@type {MovingNode}*/
-			let red_box = this.getNode("red-box");
-			
-			if(Math.cos(this.timestamp/1000) > 0){
-				red_box.direction = -1;
-			}else{
-				red_box.direction = 1;
-			}
-
-			NodeUtil.move(red_box, {x: red_box.direction});
 		};
 	</script>
 </body>
