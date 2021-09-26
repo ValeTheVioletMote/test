@@ -27,19 +27,6 @@
 		 * */
 
 
-		/** 
-		 * Adjust both the canvas and the app to resize the game.
-		 * @param {{height: number, width: number, clear: ()=>void}} app
-		 * @param {number} width
-		 * @param {number} height
-		 **/
-		function resize_game(app, height, width) {
-			document.getElementById("canvas").height = height;
-			document.getElementById("canvas").width = width;
-			app.height = height; app.width = width;
-			app.clear();
-			// TODO: adjust app nodes accordingly.
-		}
 		var build_NodeUtil = ((app) => {
 
 			/**
@@ -167,6 +154,19 @@
 			Ball: {
 				node_name: "ball-circle"
 			,	last_touched_by: null
+			},
+			/** 
+			 * Adjust both the canvas and the app to resize the game.
+			 * @param {{height: number, width: number, clear: ()=>void}} app
+			 * @param {number} width
+			 * @param {number} height
+			 **/
+			resize(app, height, width) {
+				document.getElementById("canvas").height = height;
+				document.getElementById("canvas").width = width;
+				app.height = height; app.width = width;
+				app.clear();
+				// TODO: adjust app nodes accordingly.
 			}
 		}
 
