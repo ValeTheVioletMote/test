@@ -475,10 +475,16 @@
 			let ball_n = app.getNode(Game.Ball.node_name);
 			let m_ball_move = NodeUtil.process_velocity(ball_n, true);
 			if(m_ball_move.c == "NODE_COLLISION"){
-				let {new_velocity} = NodeUtil.bounce(ball_n, NodeUtil.get_vel_xy(ball_n), m_ball_move.reason);
+				let {new_velocity} = NodeUtil.bounce_hard(ball_n, m_ball_move.detail);
 				NodeUtil.set_xy_vel(ball_n, new_velocity);
 			}else if(m_ball_move.c == "OUT_OF_BOUNDS") {
-				Game.reset_ball_position();
+				if(m_ball_move.reason == "Y") {
+					let {new_velocity} = NodeUtil.bounce(ball_n, m_ball_move.reason);
+					NodeUtil.set_xy_vel(ball_n, new_velocity);
+				}else{
+					// Point
+					Game.reset_ball_position(this);
+				}
 			}
 
 		};
