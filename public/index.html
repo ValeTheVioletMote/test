@@ -232,7 +232,7 @@
 
 			// Call to update canvas/app to new size. Declared here to lock in app as `this` to the scope.
 			// We're also only using this once elsewhere, in the below event declaration.
-			let update_size_to_viewport = () => resize_game(this, window.visualViewport.height-BODY_MARGIN, window.visualViewport.width-BODY_MARGIN);
+			let update_size_to_viewport = () => Game.resize(this, window.visualViewport.height-BODY_MARGIN, window.visualViewport.width-BODY_MARGIN);
 			update_size_to_viewport();
 			// onInit will only be called once so declaring this event here is safe.
 			window.addEventListener("resize", update_size_to_viewport);
