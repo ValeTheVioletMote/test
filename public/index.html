@@ -81,6 +81,10 @@
 					return {c: "STAYED", reason: m_collision.reason};
 				}
 			}
+			return {
+				will_collide_q : will_node_collide
+			,	move: move_node
+			}
 		});
 		/**@type{ReturnType<build_NodeUtil>}*/
 		var NodeUtil;
@@ -123,6 +127,7 @@
 		};
 
 		app.onUpdate = function(time){
+
 			// Again, not touching app.js. I'd prefer that onUpdate occur
 			// after initialization, not before it (app.js line 22 & 23 being swapped).
 			// So this is a clunky workaround that adds another boolean check to the sensitive update function. 
@@ -130,13 +135,17 @@
 			// or I could wrap app.onInit and app.onUpdate in its own init, but that would appear redundant at first glance. Consider this a TODO.
 			if(NodeUtil == undefined) return;
 
-			if(Math.cos(this.timestamp / 100) > 0){
-				this.getNode('red-box').direction = -1;
+			/**@type {MovingNode}*/
+			let red_box = this.getNode("red-box");
+			NodeUtil.move(this.getNode('black-box'), {y: 1});
+
+			if(Math.cos(this.timestamp/1000) > 0){
+				red_box.direction = -1;
 			}else{
-				this.getNode('red-box').direction = 1;
+				red_box.direction = 1;
 			}
 
-			this.getNode('red-box').x+=this.getNode('red-box').direction;
+			NodeUtil.move(red_box, {x: red_box.direction});
 		};
 	</script>
 </body>
