@@ -34,13 +34,13 @@
 			 * @typedef {"X" | "Y" | "BOTH"} CollisionReason
 			*/
 			/**
-			 * Will Collide? Check if the proposed changes to the node will cause a collision.
+			 * Will Collide with bounds? Check if the proposed changes to the node will cause a collision with the canvas bounds.
 			 * @param {{height: number, width: number}} app -- We're highlighting the pieces we pull from the app.
 			 * @param {AppNode} node
 			 * @param {XY_Adjustment} xyadj
 			 * @returns {{c: "YES", reason: CollisionReason} | {c: "NO"}}
 			 * */
-			function will_node_collide(node, xyadj) {
+			function will_bounds_collide(node, xyadj) {
 				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0);
 				/**@type{{width: number, height: number}}*/
 				let {width: app_x, height: app_y} = app;
@@ -56,16 +56,21 @@
 			 * Attempt to move a node. Send back data for success or failure.
 			 * @param {AppNode} node
 			 * @param {XY_Adjustment} xyadj
-			 * @returns {{c: "MOVED"} | {c: "COLLIDED", reason: CollisionReason}}
+			 * @param {boolean} check_node_collide
+			 * @returns {{c: "MOVED"} | {c: "OUT_OF_BOUNDS" | "NODE_COLLISION", reason: CollisionReason}}
 			 **/
-			function move_node(node, xyadj) {
-				let m_collision = will_node_collide(node, xyadj);
-				if(m_collision.c == "NO") {
+			function move_node(node, xyadj, check_node_collide=false) {
+				let m_outofbounds = will_bounds_collide(node, xyadj);
+				if(m_outofbounds.c == "NO") {
+					let m_node_collision = check_node_collide ? will_node_collide(node, xyadj) : {c: /**@type{"NO"}*/("NO")};
+					if(m_node_collision.c == "YES") {
+						return {c: "NODE_COLLISION", reason: m_node_collision.reason};
+					}
 					node.x += (xyadj.x ?? 0);
 					node.y += (xyadj.y ?? 0);
 					return {c: "MOVED"};
 				}else{
-					return {c: "COLLIDED", reason: m_collision.reason};
+					return {c: "OUT_OF_BOUNDS", reason: m_collision.reason};
 				}
 			}
 
@@ -324,7 +329,7 @@
 
 			for(let player_node of [Game.get_player_node(this, Game.PlayerLeft), Game.get_player_node(this, Game.PlayerRight)]) {
 				let m_pn_move = NodeUtil.process_velocity(player_node);
-				if(m_pn_move.c == "COLLIDED") {
+				if(m_pn_move.c == "OUT_OF_BOUNDS") {
 					NodeUtil.set_xy_vel(player_node, {y: 0});
 				}
 			}
