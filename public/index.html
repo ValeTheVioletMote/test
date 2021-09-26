@@ -70,7 +70,7 @@
 					node.y += (xyadj.y ?? 0);
 					return {c: "MOVED"};
 				}else{
-					return {c: "OUT_OF_BOUNDS", reason: m_collision.reason};
+					return {c: "OUT_OF_BOUNDS", reason: m_outofbounds.reason};
 				}
 			}
 
