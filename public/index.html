@@ -64,6 +64,23 @@
 							: y_failed ? {c: "YES", reason: "Y"} 
 							: {c: "NO"});
 			}
+
+			/**
+			 * Attempt to move a node. Send back data for success or failure.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @returns {{c: "MOVED"} | {c: "STAYED", reason: CollisionReason}}
+			 **/
+			function move_node(node, xyadj) {
+				let m_collision = will_node_collide(node, xyadj);
+				if(m_collision.c == "NO") {
+					node.x += (xyadj.x ?? 0);
+					node.y += (xyadj.y ?? 0);
+					return {c: "MOVED"};
+				}else{
+					return {c: "STAYED", reason: m_collision.reason};
+				}
+			}
 		});
 		/**@type{ReturnType<build_NodeUtil>}*/
 		var NodeUtil;
