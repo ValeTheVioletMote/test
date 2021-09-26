@@ -118,8 +118,8 @@
 			 * @param {MovingNode} movode 
 			 * @param {{x: number, y: number}} new_velocity */
 			function set_velocity(movode, {x,y}) {
-				movode.vel_x = x;
-				movode.vel_y = y;
+				if(x != undefined) movode.vel_x = x;
+				if(y != undefined) movode.vel_y = y;
 			}
 
 			return {
@@ -133,6 +133,42 @@
 		});
 		/**@type{ReturnType<build_NodeUtil>}*/
 		var NodeUtil;
+
+		/**@typedef {{node_name: string, score: number, player_name: string, controls: {Up: string, Down: string}}} Player*/
+
+
+		var Game = {
+			/**@type{Player}*/
+			PlayerLeft: {
+				node_name: "red-box"
+			,	score: 0
+			,	player_name: "Left"
+			,	controls: {
+					Up: "KeyW"
+				,	Down: "KeyS"
+				}
+			},
+			/**@type{Player}*/
+			PlayerRight: {
+				node_name: "black-box"
+			,	score: 0
+			,	player_name: "Right"
+			,	controls: {
+					Up: "ArrowUp"
+				,	Down: "ArrowDown"
+				}
+			},
+			/**@param {Player} player
+			 * @returns {MovingNode}
+			*/
+			get_player_node: function get_player_node(app, player) {
+				return app.getNode(player.node_name);
+			},
+			Ball: {
+				node_name: "ball-circle"
+			,	last_touched_by: null
+			}
+		}
 
 		app.onInit = function(){
 
@@ -156,11 +192,39 @@
 				if(e.code == "Space") {
 					// `this` is not the event because of how arrow functions mingle in the lexical scoping world.
 					this.toggle_pause();
+				}else if(e.code == Game.PlayerLeft.controls.Up || e.code == Game.PlayerLeft.controls.Down) {
+					let n = Game.get_player_node(this, Game.PlayerLeft);
+					NodeUtil.set_xy_vel(n, {y:0});
+				}else if(e.code == Game.PlayerRight.controls.Up || e.code == Game.PlayerRight.controls.Down) {
+					let n = Game.get_player_node(this, Game.PlayerRight);
+					NodeUtil.set_xy_vel(n, {y: 0});
 				}
 			})
 
 			document.addEventListener("keydown", (e) => {
 				if(e.repeat) return;
+				switch(e.code) {
+					case Game.PlayerLeft.controls.Up: {
+						let n = Game.get_player_node(this, Game.PlayerLeft);
+						NodeUtil.set_xy_vel(n, {y: -1});
+						break;
+					}
+					case Game.PlayerRight.controls.Up: {
+						let n = Game.get_player_node(this, Game.PlayerRight);
+						NodeUtil.set_xy_vel(n, {y: -1});
+						break;
+					}
+					case Game.PlayerLeft.controls.Down: {
+						let n = Game.get_player_node(this, Game.PlayerLeft);
+						NodeUtil.set_xy_vel(n, {y: 1});
+						break;
+					}
+					case Game.PlayerRight.controls.Down: {
+						let n = Game.get_player_node(this, Game.PlayerRight);
+						NodeUtil.set_xy_vel(n, {y: 1});
+						break;
+					}
+				}
 
 			})
 
@@ -198,7 +262,7 @@
 				width  : 25,
 				height : 100,
 				color  : 'black',
-				vel_x: 0.25,
+				vel_x: 0,
 				vel_y: 1
 			});
 		};
@@ -212,13 +276,13 @@
 			// or I could wrap app.onInit and app.onUpdate in its own init, but that would appear redundant at first glance. Consider this a TODO.
 			if(NodeUtil == undefined) return;
 			if(this.paused) return;
-			let black_box = this.getNode('black-box');
-			let m_bb_move = NodeUtil.process_velocity(black_box);
-			if(m_bb_move.c == "COLLIDED") {
-				let {new_velocity} = NodeUtil.bounce(black_box, NodeUtil.get_vel_xy(black_box), m_bb_move.reason);
-				NodeUtil.set_xy_vel(black_box, new_velocity);
-			}
 
+			for(let player_node of [Game.get_player_node(this, Game.PlayerLeft), Game.get_player_node(this, Game.PlayerRight)]) {
+				let m_pn_move = NodeUtil.process_velocity(player_node);
+				if(m_pn_move.c == "COLLIDED") {
+					NodeUtil.set_xy_vel(player_node, {y: 0});
+				}
+			}
 
 			/**@type {MovingNode}*/
 			let red_box = this.getNode("red-box");
