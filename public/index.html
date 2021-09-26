@@ -110,8 +110,7 @@
 			}
 
 			return {
-				will_collide_q : will_node_collide
-			,	move: move_node
+				move: move_node
 			,	bounce
 			,	process_velocity
 			,	get_vel_xy: get_velocity
@@ -125,6 +124,9 @@
 
 
 		var Game = {
+			Settings: {
+				speed: {players:3, ball: 1}
+			},
 			/**@type{Player}*/
 			PlayerLeft: {
 				node_name: "red-box"
@@ -167,6 +169,27 @@
 				app.height = height; app.width = width;
 				app.clear();
 				// TODO: adjust app nodes accordingly.
+			get_control_request_info(control_code) {
+				var found_player, direction;
+				switch(control_code) {
+					case Game.PlayerLeft.controls.Up: {
+						found_player = Game.PlayerLeft; direction = "Up"; break;
+					}
+					case Game.PlayerRight.controls.Up: {
+						found_player = Game.PlayerRight; direction = "Up"; break;
+					}
+					case Game.PlayerLeft.controls.Down: {
+						found_player = Game.PlayerLeft; direction = "Down"; break;
+					}
+					case Game.PlayerRight.controls.Down: {
+						found_player = Game.PlayerRight; direction = "Down"; break;
+					}
+				}
+				if(found_player != null) {
+					return {c: /**@type {"FOUND"}*/("FOUND"), player: found_player, direction: /**@type{"Up" | "Down"}*/(direction)}
+				}else{
+					return {c: /**@type{"NOT_FOUND"}*/("NOT_FOUND")};
+				}
 			}
 		}
 
@@ -192,38 +215,28 @@
 				if(e.code == "Space") {
 					// `this` is not the event because of how arrow functions mingle in the lexical scoping world.
 					this.toggle_pause();
-				}else if(e.code == Game.PlayerLeft.controls.Up || e.code == Game.PlayerLeft.controls.Down) {
-					let n = Game.get_player_node(this, Game.PlayerLeft);
-					NodeUtil.set_xy_vel(n, {y:0});
-				}else if(e.code == Game.PlayerRight.controls.Up || e.code == Game.PlayerRight.controls.Down) {
-					let n = Game.get_player_node(this, Game.PlayerRight);
-					NodeUtil.set_xy_vel(n, {y: 0});
+				}else{
+					let m_cri = Game.get_control_request_info(e.code);
+					if(m_cri.c == "FOUND") {
+						let n = Game.get_player_node(this, m_cri.player);
+						// We handle the case where the user has pressed on the new key to go another way but has yet
+						// to release the old key. If we don't do this, then releasing the old key interrupts the intended
+						// motion. By adding this, we make the gameplay fluid.
+						let already_going_another_way = (m_cri.direction == "Up" && n.vel_y > 0) || (m_cri.direction == "Down" && n.vel_y < 0);
+						if(already_going_another_way == false) NodeUtil.set_xy_vel(n, {y:0});
+					}
 				}
 			})
 
 			document.addEventListener("keydown", (e) => {
 				if(e.repeat) return;
-				switch(e.code) {
-					case Game.PlayerLeft.controls.Up: {
-						let n = Game.get_player_node(this, Game.PlayerLeft);
-						NodeUtil.set_xy_vel(n, {y: -1});
-						break;
-					}
-					case Game.PlayerRight.controls.Up: {
-						let n = Game.get_player_node(this, Game.PlayerRight);
-						NodeUtil.set_xy_vel(n, {y: -1});
-						break;
-					}
-					case Game.PlayerLeft.controls.Down: {
-						let n = Game.get_player_node(this, Game.PlayerLeft);
-						NodeUtil.set_xy_vel(n, {y: 1});
-						break;
-					}
-					case Game.PlayerRight.controls.Down: {
-						let n = Game.get_player_node(this, Game.PlayerRight);
-						NodeUtil.set_xy_vel(n, {y: 1});
-						break;
-					}
+				let m_cri = Game.get_control_request_info(e.code);
+
+				if(m_cri.c == "FOUND") {
+					const psf = Game.Settings.speed.players;
+					const dirnum = m_cri.direction == "Up" ? -1 : 1;
+					let n = Game.get_player_node(this, m_cri.player);
+					NodeUtil.set_xy_vel(n, {y: dirnum*psf});
 				}
 
 			})
