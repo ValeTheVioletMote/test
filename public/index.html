@@ -57,8 +57,8 @@
 				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0);
 				/**@type{{width: number, height: number}}*/
 				let {width: app_x, height: app_y} = app;
-				let x_failed = (prop_x < 0 || prop_x+node.width > app_x)
-				, 	y_failed = (prop_y < 0 || prop_y+node.height > app_y);
+				let x_failed = (prop_x < 0 || prop_x+(node.width || node.radius) > app_x)
+				, 	y_failed = (prop_y < 0 || prop_y+(node.height || node.radius) > app_y);
 				return (x_failed && y_failed ? {c: "YES", reason: "BOTH"} 
 							: x_failed ? {c: "YES", reason: "X"} 
 							: y_failed ? {c: "YES", reason: "Y"} 
