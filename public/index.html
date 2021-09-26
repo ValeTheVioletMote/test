@@ -160,39 +160,12 @@
 
 				let total_velocity = Math.abs(moving_circle.vel_x)+Math.abs(moving_circle.vel_y);
 
-				// Most of the time, it's the y surface we're bouncing on. We determine by checking which violation is closest to the ball.
-				// The primary surface is the opposite of that violation's axis.
-				// E.g., if we're within 2 points of violating the x axis, that means we'd be striking the surface on the y axis.
-				// This only works assuming this is a collision against a rectangle.
-
-				/**@type{Array<{value: number} & {surface: "Y", violation_axis: "X"} | {surface: "X", violation_axis: "Y"}}*/
-				// let minlist = [
-				// 		{surface: "Y", violation_axis: "X", value: Math.abs(max_x-x)}
-				// 	,	{surface: "Y", violation_axis: "X", value: Math.abs(min_x-x)}
-				// 	,	{surface: "X", violation_axis: "Y", value: Math.abs(max_y-y)}
-				// 	,	{surface: "X", violation_axis: "Y", value: Math.abs(min_y-y)}
-				// ];
-
-				// "closest" here stands for "closest to the current position". We want to know where the circle is closest to.
-				// let closest = minlist.reduce((prev, curr) => curr.value < prev.value ? curr : prev);
-
-				// Determine the 'weight' for the primary surface in each direction from the middle. Ranges from -100 to 100.
-				// /**@type{number}*/
-				// let from_middle_wgt;
-				// /**@type{number}*/
-				// let violation_current_velocity;
-				// // Most common case.
-				// if(closest.surface == "Y") {
-				// 	let half_rect_height = rect_height*0.5
-				// 	console.log({half_rect_height, y, min_y});
-				// 	from_middle_wgt = Math.ceil(100/half_rect_height*(y-half_rect_height-min_y));
-				// 	violation_current_velocity = moving_circle.vel_x;
-				// } else {
-				// 	let half_rect_width = rect_width*0.5;
-				// 	console.log({half_rect_width, x, min_x});
-				// 	from_middle_wgt = Math.ceil(100/half_rect_width*(x-half_rect_width-min_x));
-				// 	violation_current_velocity = moving_circle.vel_y;
-				// }
+				// In order to attempt to simulate an actual ping pong paddle whacking the ball at an angle,
+				// I check where along each dimension that the ball is 'closest to' by getting its relative distance from the middle of each dim
+				// and dividing that such that I get a percentile (e.g., 27% taller, 32% shorter - represented as 27, -32 respectively)
+				// The side where the collision did not occur will typically have a larger "from middle wgt", often over 100/-100.
+				// I suspect there is a strong possibility that even the correct side can reach over 100/-100 due to
+				// the projected boundaries of the sphere not being entirely exact, but it behaves well enough that I would consider it a TODO..
 
 				let from_middle_wgt;
 				let half_rect_height = rect_height*0.5
