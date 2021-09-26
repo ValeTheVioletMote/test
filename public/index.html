@@ -150,6 +150,91 @@
 			}
 
 			/**
+			 * Simulate 'angling' of the paddle against the ball, causing the ball to bounce more wildly.
+			 * @param {MovingNode & {shape: "Circle"}} moving_circle
+			 * @param {NodeCollisionDetail} rect_colldet -- Rectangle Collision Detail
+			*/
+			function bounce_hard(moving_circle, rect_colldet) {
+
+				let {min_x, min_y, max_x, max_y, prop_x: x, prop_y: y, other_width: rect_width, other_height: rect_height} = rect_colldet;
+
+				let total_velocity = Math.abs(moving_circle.vel_x)+Math.abs(moving_circle.vel_y);
+
+				// Most of the time, it's the y surface we're bouncing on. We determine by checking which violation is closest to the ball.
+				// The primary surface is the opposite of that violation's axis.
+				// E.g., if we're within 2 points of violating the x axis, that means we'd be striking the surface on the y axis.
+				// This only works assuming this is a collision against a rectangle.
+
+				/**@type{Array<{value: number} & {surface: "Y", violation_axis: "X"} | {surface: "X", violation_axis: "Y"}}*/
+				// let minlist = [
+				// 		{surface: "Y", violation_axis: "X", value: Math.abs(max_x-x)}
+				// 	,	{surface: "Y", violation_axis: "X", value: Math.abs(min_x-x)}
+				// 	,	{surface: "X", violation_axis: "Y", value: Math.abs(max_y-y)}
+				// 	,	{surface: "X", violation_axis: "Y", value: Math.abs(min_y-y)}
+				// ];
+
+				// "closest" here stands for "closest to the current position". We want to know where the circle is closest to.
+				// let closest = minlist.reduce((prev, curr) => curr.value < prev.value ? curr : prev);
+
+				// Determine the 'weight' for the primary surface in each direction from the middle. Ranges from -100 to 100.
+				// /**@type{number}*/
+				// let from_middle_wgt;
+				// /**@type{number}*/
+				// let violation_current_velocity;
+				// // Most common case.
+				// if(closest.surface == "Y") {
+				// 	let half_rect_height = rect_height*0.5
+				// 	console.log({half_rect_height, y, min_y});
+				// 	from_middle_wgt = Math.ceil(100/half_rect_height*(y-half_rect_height-min_y));
+				// 	violation_current_velocity = moving_circle.vel_x;
+				// } else {
+				// 	let half_rect_width = rect_width*0.5;
+				// 	console.log({half_rect_width, x, min_x});
+				// 	from_middle_wgt = Math.ceil(100/half_rect_width*(x-half_rect_width-min_x));
+				// 	violation_current_velocity = moving_circle.vel_y;
+				// }
+
+				let from_middle_wgt;
+				let half_rect_height = rect_height*0.5
+				let y_fmw = Math.ceil(100/half_rect_height*(y-half_rect_height-min_y));
+				let half_rect_width = rect_width*0.5;
+				let x_fmw = from_middle_wgt = Math.ceil(100/half_rect_width*(x-half_rect_width-min_x));
+				console.log({half_rect_height, half_rect_width, x, min_x, y, min_y, y_fmw, x_fmw});
+				/**@type{"Y" | "X"}*/
+				let surface = Math.abs(y_fmw) < Math.abs(x_fmw) ? "Y" : "X";
+				if(surface == "Y") {
+					from_middle_wgt = y_fmw;
+					violation_current_velocity = moving_circle.vel_x;
+				}else{
+					from_middle_wgt = x_fmw;
+					violation_current_velocity = moving_circle.vel_y;
+				}
+				/**@type{"POS" | "NEG" | "ZERO"}*/
+				let violation_sign = (violation_current_velocity > 0) ? "POS" : violation_current_velocity < 0 ? "NEG" : "ZERO";
+
+				// The 'from_middle_wgt' determines the weight that is stolen from the total velocity.
+				// Since we don't want it to completely deadpan movement, it only gets a 90% share of the velocity, max.
+				console.log({total_velocity, from_middle_wgt});
+				let surface_axis_velocity = Math.floor(0.9*total_velocity*from_middle_wgt/10)/10;
+				console.log({surface_axis_velocity})
+				// Dump the rest into the violation axis velocity & give it a flip.
+				let violation_axis_velocity = (total_velocity-Math.abs(surface_axis_velocity))*(violation_sign == "POS" ? -1 : 1);
+				console.log({violation_axis_velocity});
+
+				/**@type{{x: number, y: number}}*/
+				let new_velocity = {};
+
+				if(surface == "Y") {
+					new_velocity.y = surface_axis_velocity;
+					new_velocity.x = violation_axis_velocity;
+				}else{
+					new_velocity.x = surface_axis_velocity;
+					new_velocity.y = violation_axis_velocity;
+				}
+				return {move_result: move_node(moving_circle, new_velocity), new_velocity};
+			}
+
+			/**
 			 * @param {MovingNode} movode */
 			function get_velocity(movode) {
 				return {x: movode.vel_x, y: movode.vel_y};
