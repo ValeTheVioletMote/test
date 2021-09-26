@@ -185,7 +185,7 @@
 				id : 'red-box',
 				x  : 100,
 				y  : 0,
-				width  : 100,
+				width  : 25,
 				height : 100,
 				color  : 'red',
 				direction : 0
@@ -195,9 +195,11 @@
 				id : 'black-box',
 				x  : 50,
 				y  : 0,
-				width  : 150,
-				height : 150,
-				color  : 'black'
+				width  : 25,
+				height : 100,
+				color  : 'black',
+				vel_x: 0.25,
+				vel_y: 1
 			});
 		};
 
@@ -209,11 +211,18 @@
 			// I could fall back to global variable assumptions (easiest, but not the best for long-term if there's more work to be done in app.onInit)
 			// or I could wrap app.onInit and app.onUpdate in its own init, but that would appear redundant at first glance. Consider this a TODO.
 			if(NodeUtil == undefined) return;
+			if(this.paused) return;
+			let black_box = this.getNode('black-box');
+			let m_bb_move = NodeUtil.process_velocity(black_box);
+			if(m_bb_move.c == "COLLIDED") {
+				let {new_velocity} = NodeUtil.bounce(black_box, NodeUtil.get_vel_xy(black_box), m_bb_move.reason);
+				NodeUtil.set_xy_vel(black_box, new_velocity);
+			}
+
 
 			/**@type {MovingNode}*/
 			let red_box = this.getNode("red-box");
-			NodeUtil.move(this.getNode('black-box'), {y: 1});
-
+			
 			if(Math.cos(this.timestamp/1000) > 0){
 				red_box.direction = -1;
 			}else{
