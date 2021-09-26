@@ -169,6 +169,27 @@
 				app.height = height; app.width = width;
 				app.clear();
 				// TODO: adjust app nodes accordingly.
+			},
+			reset_player_positions(app) {
+				let left = Game.get_player_node(app, Game.PlayerLeft);
+				let right = Game.get_player_node(app, Game.PlayerRight);
+				let one_segment_x = 0.125*app.width;
+				let half_y = 0.5*app.height;
+				left.x = one_segment_x;
+				right.x = app.width-one_segment_x-right.width;
+				left.y = half_y - (0.5*left.height);
+				right.y = half_y - (0.5*right.height);
+			},
+			reset_ball_position(app) {
+				let ball_n = app.getNode(Game.Ball.node_name);
+				let half_r = 0.5*ball_n.radius;
+				ball_n.x = (0.5*app.width) - half_r;
+				ball_n.y = (0.5*app.height) - half_r;
+			},
+			reset_all_positions(app) {
+				Game.reset_player_positions(app);
+				Game.reset_ball_position(app);
+			},
 			get_control_request_info(control_code) {
 				var found_player, direction;
 				switch(control_code) {
@@ -275,8 +296,8 @@
 				width  : 25,
 				height : 100,
 				color  : 'black',
-				vel_x: 0,
-				vel_y: 1
+				// vel_x: 0,
+				// vel_y: 1
 			});
 
 			this.nodes.push({
@@ -287,6 +308,8 @@
 				radius: 10,
 				color: 'green'
 			})
+
+			Game.reset_all_positions(this);
 		};
 
 		app.onUpdate = function(time){
