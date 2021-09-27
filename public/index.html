@@ -474,6 +474,15 @@
 				this.paused ? this.unpause() : this.pause();
 			}
 
+			this.reset = function reset_app() {
+				this.pause();
+				Game.reset_scores(this);
+				Game.reset_all_positions(this);
+				Game.reset_ball_velocity(this);
+				Game.set_info_text(this, "Start: Press Space.");
+				Game.show_info_text(this);
+			}
+
 			// Edits to app end.
 
 			document.addEventListener("keyup", (e) => {
