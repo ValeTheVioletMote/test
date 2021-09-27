@@ -515,6 +515,8 @@
 				// vel_y: 1
 			});
 
+			let starting_ball_dir = Math.cos(this.timestamp / 100) > 0 ? 1 : -1;
+
 			this.nodes.push({
 				id: 'ball-circle',
 				x: 200,
@@ -523,7 +525,7 @@
 				radius: 10,
 				color: 'green',
 				node_collides: true,
-				vel_x: 1*Game.Settings.speed.ball,
+				vel_x: starting_ball_dir*Game.Settings.speed.ball,
 				vel_y: 0
 			});
 
