@@ -160,9 +160,6 @@
 					, y_sign = xyadj.y > 0 ? "POS": "NEG";
 				const flip_sign = (sign) => sign == "POS" ? "NEG" : "POS";
 				let signs = {x: x_sign, y: y_sign};
-
-				console.log({x_sign, y_sign});
-
 				if(collision_reason == "BOTH") {
 					signs.x = flip_sign(x_sign); 
 					signs.y = flip_sign(y_sign);
@@ -175,7 +172,6 @@
 					x: Math.abs(xyadj.x)
 				,	y: Math.abs(xyadj.y)
 				};
-				console.log(signs);
 				const total_velocity = absv.x+absv.y;
 				// Slide {bias_strength}% of the unbiased velocity over to the biased.
 				let inv_bias = bias_axis == "x" ? "y": "x";
@@ -185,7 +181,6 @@
 				let new_biased_velocity_absv = absv[bias_axis]+shifting_velocity;
 				new_velocity[bias_axis] = new_biased_velocity_absv*(signs[bias_axis] == "POS" ? 1 : -1);
 				new_velocity[inv_bias] = (total_velocity-new_biased_velocity_absv)*(signs[inv_bias] == "POS" ? 1 : -1);
-				console.log(new_velocity)
 				return {move_result: move_node(node, new_velocity), new_velocity};
 			}
 
@@ -204,8 +199,7 @@
 				// I check where along each dimension that the ball is 'closest to' by getting its relative distance from the middle of each dim
 				// and dividing that such that I get a percentile (e.g., 27% taller, 32% shorter - represented as 27, -32 respectively)
 				// The side where the collision did not occur will typically have a larger "from middle wgt", often over 100/-100.
-				// I suspect there is a strong possibility that even the correct side can reach over 100/-100 due to
-				// the projected boundaries of the sphere not being entirely exact, but it behaves well enough that I would consider it a TODO..
+				// There are occasions where the ball strikes and both are in excess of 100/-100. We still pick the smallest and then cap the weight.
 
 				let from_middle_wgt;
 				let half_rect_height = rect_height*0.5
@@ -226,6 +220,11 @@
 				let violation_sign = (violation_current_velocity > 0) ? "POS" : violation_current_velocity < 0 ? "NEG" : "ZERO";
 
 				// The 'from_middle_wgt' determines the weight that is stolen from the total velocity.
+
+				// Sometimes it can exceed itself, so we just 'max' it out here:
+				if(from_middle_wgt > 100) from_middle_wgt = 100;
+				if(from_middle_wgt < -100) from_middle_wgt = -100;
+
 				// Since we don't want it to completely deadpan movement, it only gets a 90% share of the velocity, max.
 				let surface_axis_velocity = Math.floor(0.9*total_velocity*from_middle_wgt/10)/10;
 				// Dump the rest into the violation axis velocity & give it a flip.
