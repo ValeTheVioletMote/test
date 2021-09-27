@@ -5,18 +5,540 @@
 </head>
 <body>
 	<canvas id="canvas" width="800" height="400"></canvas>
+	<style>
+		/**
+			Overflow being hidden prevents the presence of a scrollbar in a resizable, fullscreen game.
+		*/
+		body {
+			overflow: hidden;
+		}
+	</style>
+		
 	<script type="text/javascript" src="js/app.js"></script>
 	<script type="text/javascript">
-		//Sample functions, remove these functions and design ping-pong game with onInit and onUpdate.
+		// Apply a margin to the body that can be accounted for programatically.
+		const BODY_MARGIN = 10;
+		document.querySelector("body").style.margin = BODY_MARGIN+"px";
+
+		/**
+		 * @typedef {{id: string, x: number, y: number
+		 * , color: string, node_collides: boolean}  
+		 * & ({shape: "Rectangle", width: number, height: number} | {shape: "Circle", radius: number} )} AppNode
+		 * @typedef {AppNode & {vel_x: number, vel_y: number}} MovingNode
+		 * @typedef {{prop_x: number, prop_y: number, prop_min_x: number
+		 * , prop_min_y: number, prop_max_x: number, prop_max_y: number
+		 * , min_x: number, min_y: number, max_x: number, max_y: number
+		 * , other_width: number, other_height: number}} NodeCollisionDetail
+		 * */
+
+		//Mirrored from app.js:
+		/**@typedef {{id: string, x: number, y: number, type: "text", value: string, hidden:boolean, font: string, font_px: number, color: string, align: "left" | "center" | "right"}} Floater */
+
+
+		var build_NodeUtil = ((app) => {
+
+			/**
+			 * @typedef {{x: number | undefined, y: number | undefined}} XY_Adjustment -- X & Y adjustments proposed. For ease of use, undeclared=0.
+			 * @typedef {"X" | "Y" | "BOTH"} CollisionReason
+			*/
+			/**
+			 * Will Collide with bounds? Check if the proposed changes to the node will cause a collision with the canvas bounds.
+			 * @param {{height: number, width: number}} app -- We're highlighting the pieces we pull from the app.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @returns {{c: "YES", reason: CollisionReason} | {c: "NO"}}
+			 * */
+			function will_bounds_collide(node, xyadj) {
+				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0);
+				/**@type{{width: number, height: number}}*/
+				let {width: app_x, height: app_y} = app;
+				let x_failed = (prop_x < 0 || prop_x+(node.width ?? node.radius) > app_x)
+				, 	y_failed = (prop_y < 0 || prop_y+(node.height ?? node.radius) > app_y);
+				return (x_failed && y_failed ? {c: "YES", reason: "BOTH"} 
+							: x_failed ? {c: "YES", reason: "X"} 
+							: y_failed ? {c: "YES", reason: "Y"} 
+							: {c: "NO"});
+			}
+
+
+			/**
+			 * Will we collide with another node?
+			 * @param {nodes: Array<AppNode>} app
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @returns {{c: "YES", detail: NodeCollisionDetail } 
+			 * | {c: "NO"}}
+			*/
+			function will_node_collide(node, xyadj) {
+				/**@type{Array<AppNode>}*/
+				let nodes = app.nodes;
+				
+				let prop_x = node.x+(xyadj.x ?? 0), prop_y = node.y+(xyadj.y ?? 0)
+					, radius = node.radius, height = node.height, width = node.width;
+				for(let x=0;x<=nodes.length;x++) {
+					let other = nodes[x];
+					if(other.id == node.id) {x++ ; continue;}
+					let min_x = other.x, max_x = min_x+other.width
+					,	min_y = other.y, max_y = min_y+other.height;
+
+					let prop_width = node.width ?? radius, prop_height = node.height ?? radius;
+
+					let prop_min_x = prop_x-prop_width, prop_max_x = prop_x+prop_width
+					,	prop_min_y = prop_y-prop_height, prop_max_y = prop_y+prop_height
+
+					let x_failed = prop_max_x >= min_x && prop_min_x <= max_x
+					,	y_failed = prop_max_y >= min_y && prop_min_y <= max_y;
+
+					if(x_failed && y_failed) {
+						return {c: "YES", detail: {prop_x, prop_y, prop_min_x, prop_min_y
+							, prop_max_x, prop_max_y, min_x, min_y, max_x, max_y, other_width: other.width, other_height: other.height}};
+					}
+				}
+				return {c: "NO"};
+			}
+
+			/**
+			 * Attempt to move a node. Send back data for success or failure.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @param {boolean} check_node_collide
+			 * @returns {{c: "MOVED"} | {c: "OUT_OF_BOUNDS", reason: CollisionReason} | {c: "NODE_COLLISION",  detail: NodeCollisionDetail }}
+			 **/
+			function move_node(node, xyadj) {
+				let m_outofbounds = will_bounds_collide(node, xyadj);
+				if(m_outofbounds.c == "NO") {
+					let m_node_collision = node.node_collides ? will_node_collide(node, xyadj) : {c: /**@type{"NO"}*/("NO")};
+					if(m_node_collision.c == "YES") {
+						return {c: "NODE_COLLISION", detail: m_node_collision.detail};
+					}
+					node.x += (xyadj.x ?? 0);
+					node.y += (xyadj.y ?? 0);
+					return {c: "MOVED"};
+				}else{
+					return {c: "OUT_OF_BOUNDS", reason: m_outofbounds.reason};
+				}
+			}
+
+
+			/**
+			 * Move based on "velocity".
+			 * @param {MovingNode} movode
+			 **/
+			function process_velocity(movode) {
+				let {vel_x, vel_y} = movode;
+				if(vel_x == 0 && vel_y == 0) return {c: /**@type{"STATIONARY"}*/("STATIONARY")};
+
+				return move_node(movode, {x: vel_x, y: vel_y});
+				// For an interesting idea later, have a 'resistance' property that proposes a new momentum/velocity if force (keypress) isn't being applied anymore?
+			}
+
+			/**
+			 * Create a movement using the 'velocity' from the attempted xyadj
+			 * by 'bouncing' where the collision was detected.
+			 * @param {AppNode} node
+			 * @param {XY_Adjustment} xyadj
+			 * @param {CollisionReason} collision_reason
+			 * */
+			function bounce(node, collision_reason) {
+				let xyadj = NodeUtil.get_vel_xy(node);
+				let new_x = collision_reason == "BOTH" || collision_reason == "X" ? -xyadj.x : xyadj.x,
+					new_y = collision_reason == "BOTH" || collision_reason == "Y" ? -xyadj.y : xyadj.y;
+				let new_velocity = {x: new_x, y: new_y};
+				return {move_result: move_node(node, new_velocity), new_velocity};
+			}
+
+			/**
+			 * A variant of bounce that biases the node toward velocity on the axis of their choice.
+			 * @param {AppNode} node
+			 * @param {"x" | "y"} bias_axis
+			 * @param {CollisionReason} collision_reason
+			 * @param {number} bias_strength -- Keep at least 5. This is the nth fraction of velocity carved away from the unbiased. i.e., 5 = 1/5.
+			 **/
+			function bounce_biased(node, bias_axis, collision_reason, bias_strength=10) {
+				const xyadj = NodeUtil.get_vel_xy(node);
+				const x_sign = xyadj.x > 0 ? "POS" : "NEG"
+					, y_sign = xyadj.y > 0 ? "POS": "NEG";
+				const flip_sign = (sign) => sign == "POS" ? "NEG" : "POS";
+				let signs = {x: x_sign, y: y_sign};
+				if(collision_reason == "BOTH") {
+					signs.x = flip_sign(x_sign); 
+					signs.y = flip_sign(y_sign);
+				} else if (collision_reason == "X") {
+					signs.x  = flip_sign(x_sign);
+				} else {
+					signs.y = flip_sign(y_sign);
+				}
+				const absv = {
+					x: Math.abs(xyadj.x)
+				,	y: Math.abs(xyadj.y)
+				};
+				const total_velocity = absv.x+absv.y;
+				// Slide {bias_strength}% of the unbiased velocity over to the biased.
+				let inv_bias = bias_axis == "x" ? "y": "x";
+				let shifting_velocity = absv[inv_bias]/bias_strength;
+
+				let new_velocity = {};
+				let new_biased_velocity_absv = absv[bias_axis]+shifting_velocity;
+				new_velocity[bias_axis] = new_biased_velocity_absv*(signs[bias_axis] == "POS" ? 1 : -1);
+				new_velocity[inv_bias] = (total_velocity-new_biased_velocity_absv)*(signs[inv_bias] == "POS" ? 1 : -1);
+				return {move_result: move_node(node, new_velocity), new_velocity};
+			}
+
+			/**
+			 * Simulate 'angling' of the paddle against the ball, causing the ball to bounce more wildly.
+			 * @param {MovingNode & {shape: "Circle"}} moving_circle
+			 * @param {NodeCollisionDetail} rect_colldet -- Rectangle Collision Detail
+			*/
+			function bounce_hard(moving_circle, rect_colldet) {
+
+				let {min_x, min_y, max_x, max_y, prop_x: x, prop_y: y, other_width: rect_width, other_height: rect_height} = rect_colldet;
+
+				let total_velocity = Math.abs(moving_circle.vel_x)+Math.abs(moving_circle.vel_y);
+
+				// In order to attempt to simulate an actual ping pong paddle whacking the ball at an angle,
+				// I check where along each dimension that the ball is 'closest to' by getting its relative distance from the middle of each dim
+				// and dividing that such that I get a percentile (e.g., 27% taller, 32% shorter - represented as 27, -32 respectively)
+				// The side where the collision did not occur will typically have a larger "from middle wgt", often over 100/-100.
+				// There are occasions where the ball strikes and both are in excess of 100/-100. We still pick the smallest and then cap the weight.
+
+				let from_middle_wgt;
+				let half_rect_height = rect_height*0.5
+				let y_fmw = Math.ceil(100/half_rect_height*(y-half_rect_height-min_y));
+				let half_rect_width = rect_width*0.5;
+				let x_fmw = from_middle_wgt = Math.ceil(100/half_rect_width*(x-half_rect_width-min_x));
+				// console.log({half_rect_height, half_rect_width, x, min_x, y, min_y, y_fmw, x_fmw});
+				/**@type{"Y" | "X"}*/
+				let surface = Math.abs(y_fmw) < Math.abs(x_fmw) ? "Y" : "X";
+				if(surface == "Y") {
+					from_middle_wgt = y_fmw;
+					violation_current_velocity = moving_circle.vel_x;
+				}else{
+					from_middle_wgt = x_fmw;
+					violation_current_velocity = moving_circle.vel_y;
+				}
+				/**@type{"POS" | "NEG" | "ZERO"}*/
+				let violation_sign = (violation_current_velocity > 0) ? "POS" : violation_current_velocity < 0 ? "NEG" : "ZERO";
+
+				// The 'from_middle_wgt' determines the weight that is stolen from the total velocity.
+
+				// Sometimes it can exceed itself, so we just 'max' it out here:
+				if(from_middle_wgt > 100) from_middle_wgt = 100;
+				if(from_middle_wgt < -100) from_middle_wgt = -100;
+
+				// Since we don't want it to completely deadpan movement, it only gets a 90% share of the velocity, max.
+				let surface_axis_velocity = Math.floor(0.9*total_velocity*from_middle_wgt/10)/10;
+				// Dump the rest into the violation axis velocity & give it a flip.
+				let violation_axis_velocity = (total_velocity-Math.abs(surface_axis_velocity))*(violation_sign == "POS" ? -1 : 1);
+
+				/**@type{{x: number, y: number}}*/
+				let new_velocity = {};
+
+				if(surface == "Y") {
+					new_velocity.y = surface_axis_velocity;
+					new_velocity.x = violation_axis_velocity;
+				}else{
+					new_velocity.x = surface_axis_velocity;
+					new_velocity.y = violation_axis_velocity;
+				}
+				return {move_result: move_node(moving_circle, new_velocity), new_velocity};
+			}
+
+			/**
+			 * @param {MovingNode} movode */
+			function get_velocity(movode) {
+				return {x: movode.vel_x, y: movode.vel_y};
+			}
+			/**
+			 * @param {MovingNode} movode 
+			 * @param {{x: number, y: number}} new_velocity */
+			function set_velocity(movode, {x,y}) {
+				if(x != undefined) movode.vel_x = x;
+				if(y != undefined) movode.vel_y = y;
+			}
+
+			return {
+				move: move_node
+			,	bounce
+			,	bounce_biased
+			,	bounce_hard
+			,	process_velocity
+			,	get_vel_xy: get_velocity
+			,	set_xy_vel: set_velocity
+			}
+		});
+		/**@type{ReturnType<build_NodeUtil>}*/
+		var NodeUtil;
+
+		/**@typedef {{node_name: string, score: number, player_name: string, controls: {Up: string, Down: string}, score_floater_name: string}} Player*/
+
+
+		var Game = {
+			Settings: {
+				// Seems optimal for 1024x768
+				speed: {players:10, ball: 8},
+				info_text_fl: "info-text",
+				x_bounce_bias: 10
+			},
+			/**@param {{width: number, height: number}} new_resolution
+			*/
+			settings_for_resolution(new_resolution) {
+
+				// Width determines the speed. Height determines the bounce bias.
+				// These settings work very well on 1024x768.
+				const base_speed = {players: 10, ball: 8}, base_bias = 10, base_width = 1024, base_height = 768;
+				
+				const speed_shift = Math.floor(10*new_resolution.width/base_width)/10;
+				const speed = {players: base_speed.players * speed_shift, ball: base_speed.ball*speed_shift};
+				const bias_shift = Math.floor(10*base_height/new_resolution.height)/10;
+				const x_bounce_bias = base_bias * bias_shift;
+				return {speed, x_bounce_bias};
+			},
+			reload_res_settings(app) {
+				const {height, width} = app;
+				let {speed, x_bounce_bias} = Game.settings_for_resolution({height, width});
+				Game.Settings.speed = speed;
+				Game.Settings.x_bounce_bias = x_bounce_bias;
+				Game.reset_all_positions(app);
+				Game.reset_ball_velocity(app);
+			},
+			/**@type{Player}*/
+			PlayerLeft: {
+				node_name: "red-box"
+			,	score: 0
+			,	player_name: "Left"
+			,	controls: {
+					Up: "KeyW"
+				,	Down: "KeyS"
+				}
+			,	score_floater_name: "score-left"
+			},
+			/**@type{Player}*/
+			PlayerRight: {
+				node_name: "black-box"
+			,	score: 0
+			,	player_name: "Right"
+			,	controls: {
+					Up: "ArrowUp"
+				,	Down: "ArrowDown"
+				}
+			,	score_floater_name: "score-right"
+			},
+			/**@param {Player} player
+			 * @returns {MovingNode}
+			*/
+			get_player_node (app, player) {
+				return app.getNode(player.node_name);
+			},
+			/**@param {Player} player
+			 * @returns {Floater}
+			*/
+			get_player_score_floater(app, player) {
+				return app.getFloater(player.score_floater_name);
+			},
+			Ball: {
+				node_name: "ball-circle"
+			},
+			/** 
+			 * Adjust both the canvas and the app to resize the game.
+			 * @param {{height: number, width: number, clear: ()=>void}} app
+			 * @param {number} width
+			 * @param {number} height
+			 **/
+			resize(app, height, width) {
+				document.getElementById("canvas").height = height;
+				document.getElementById("canvas").width = width;
+				app.height = height; app.width = width;
+				app.clear();
+				// Simplest way is to have the game reset the round and halt.
+				// When called during initial setup, this effectively does nothing, which is what we want.
+				Game.reload_res_settings(app);
+				app.pause("Game Resized. Press Space.")
+			},
+			reset_player_positions(app) {
+				let left = Game.get_player_node(app, Game.PlayerLeft);
+				let right = Game.get_player_node(app, Game.PlayerRight);
+				let one_segment_x = 0.125*app.width;
+				let half_y = 0.5*app.height;
+				left.x = one_segment_x;
+				right.x = app.width-one_segment_x-right.width;
+				left.y = half_y - (0.5*left.height);
+				right.y = half_y - (0.5*right.height);
+			},
+			reset_ball_position(app) {
+				let ball_n = app.getNode(Game.Ball.node_name);
+				let half_r = 0.5*ball_n.radius;
+				ball_n.x = (0.5*app.width) - half_r;
+				ball_n.y = (0.5*app.height) - half_r;
+			},
+			reset_ball_velocity(app) {
+				let ball_n = app.getNode(Game.Ball.node_name);
+				let starting_ball_dir = Math.cos(this.timestamp / 100) > 0 ? 1 : -1;
+				ball_n.vel_x = starting_ball_dir*Game.Settings.speed.ball
+				ball_n.vel_y = 0;
+			},
+			reset_score_positions(app) {
+				let left = Game.get_player_score_floater(app, Game.PlayerLeft);
+				let right = Game.get_player_score_floater(app, Game.PlayerRight);
+				let one_segment_x = 0.125*app.width;
+				let half_x = 0.5*app.width;
+				let margin_down = Math.max(left.font_px, right.font_px);
+				left.y = margin_down; right.y = margin_down;
+				left.x = half_x - one_segment_x - left.font_px;
+				right.x = half_x + one_segment_x;
+			},
+			reset_all_positions(app) {
+				Game.reset_player_positions(app);
+				Game.reset_ball_position(app);
+				Game.reset_score_positions(app);
+				Game.reset_info_text(app);
+			},
+			reset_scores(app) {
+				Game.PlayerLeft.score = 0;
+				Game.PlayerRight.score = 0;
+				Game.get_player_score_floater(app, Game.PlayerLeft).value = "0";
+				Game.get_player_score_floater(app, Game.PlayerRight).value = "0";
+			},
+			/**@returns {Floater} */
+			get_info_text_floater(app) {
+				return app.getFloater(Game.Settings.info_text_fl);
+			},
+			reset_info_text(app) {
+				let gitfl = Game.get_info_text_floater(app);
+				gitfl.hidden = true;
+				gitfl.value = "";
+				// let one_segment_x = 0.125*app.width;
+				let half_x = 0.5*app.width;
+				// gitfl.x = half_x - one_segment_x;
+				gitfl.x = half_x;
+				gitfl.y = app.height - gitfl.font_px;
+			},
+			show_info_text(app){
+				Game.get_info_text_floater(app).hidden = false;
+			},
+			hide_info_text(app) {
+				Game.get_info_text_floater(app).hidden = true;
+			},
+			set_info_text(app, text) {
+				Game.get_info_text_floater(app).value = text;
+			},
+			/**@param {number} ball_x */
+			handle_ball_leave_bounds(app, ball_x) {
+				/**@type {"left" | "right"}*/
+				let boundary = ball_x > app.width/2 ? "right" : "left"; 
+				let winning_player =  boundary == "right" ? Game.PlayerLeft : Game.PlayerRight;
+				winning_player.score += 1;
+				let winning_floater = Game.get_player_score_floater(app, winning_player).value = String(winning_player.score);
+				Game.reset_ball_position(app);
+				app.pause("Player "+winning_player.player_name+" scores! Press Space.");
+			},
+			get_control_request_info(control_code) {
+				var found_player, direction;
+				switch(control_code) {
+					case Game.PlayerLeft.controls.Up: {
+						found_player = Game.PlayerLeft; direction = "Up"; break;
+					}
+					case Game.PlayerRight.controls.Up: {
+						found_player = Game.PlayerRight; direction = "Up"; break;
+					}
+					case Game.PlayerLeft.controls.Down: {
+						found_player = Game.PlayerLeft; direction = "Down"; break;
+					}
+					case Game.PlayerRight.controls.Down: {
+						found_player = Game.PlayerRight; direction = "Down"; break;
+					}
+				}
+				if(found_player != null) {
+					return {c: /**@type {"FOUND"}*/("FOUND"), player: found_player, direction: /**@type{"Up" | "Down"}*/(direction)}
+				}else{
+					return {c: /**@type{"NOT_FOUND"}*/("NOT_FOUND")};
+				}
+			}
+		}
 
 		app.onInit = function(){
+
+
+			// My edits to app that are not, as part of the readme instructions, permitted to be added to app.js
+
+			this.paused = false;
+			this.pause = function pause_app(pause_txt = "Paused - Press Space") {
+				Game.set_info_text(this, pause_txt);
+				Game.show_info_text(this);
+				this.paused = true;
+			}
+			this.unpause = function unpause_app() {
+				Game.hide_info_text(this);
+				this.paused = false;
+			}
+			this.toggle_pause = function toggle_app_pause() {
+				this.paused ? this.unpause() : this.pause();
+			}
+
+			this.reset = function reset_app() {
+				this.pause();
+				Game.reset_scores(this);
+				Game.reset_all_positions(this);
+				Game.reset_ball_velocity(this);
+				Game.set_info_text(this, "Start: Press Space.");
+				Game.show_info_text(this);
+			}
+
+			// Edits to app end.
+
+			document.addEventListener("keyup", (e) => {
+				if(e.code == "Space") {
+					// `this` is not the event because of how arrow functions mingle in the lexical scoping world.
+					this.toggle_pause();
+				}else{
+					let m_cri = Game.get_control_request_info(e.code);
+					if(m_cri.c == "FOUND") {
+						let n = Game.get_player_node(this, m_cri.player);
+						// We handle the case where the user has pressed on the new key to go another way but has yet
+						// to release the old key. If we don't do this, then releasing the old key interrupts the intended
+						// motion. By adding this, we make the gameplay fluid.
+						let already_going_another_way = (m_cri.direction == "Up" && n.vel_y > 0) || (m_cri.direction == "Down" && n.vel_y < 0);
+						if(already_going_another_way == false) NodeUtil.set_xy_vel(n, {y:0});
+					}
+				}
+			})
+
+			document.addEventListener("keydown", (e) => {
+				if(e.repeat) return;
+				let m_cri = Game.get_control_request_info(e.code);
+
+				if(m_cri.c == "FOUND") {
+					const psf = Game.Settings.speed.players;
+					const dirnum = m_cri.direction == "Up" ? -1 : 1;
+					let n = Game.get_player_node(this, m_cri.player);
+					NodeUtil.set_xy_vel(n, {y: dirnum*psf});
+				}
+			})
+
+
+
+			// Call to update canvas/app to new size. Declared here to lock in app as `this` to the scope.
+			// We're also only using this once elsewhere, in the below event declaration.
+			let update_size_to_viewport = () => Game.resize(this, window.visualViewport.height-BODY_MARGIN, window.visualViewport.width-BODY_MARGIN);
+			update_size_to_viewport();
+			// onInit will only be called once so declaring this event here is safe.
+			window.addEventListener("resize", update_size_to_viewport);
+
+			// I recognize that I could have created this earlier by referencing `app` directly in the global scope,
+			// but here I am preparing for the possibility that I am not 'ready' until I am in an init function.
+			// Same reason I capture `this` in update_size_to_viewport.
+			// Ultimately, I build NodeUtil here because of the requirement to not touch app.js 
+			// (and by extension, safe-assumedly, not extending the app global var itself)
+			NodeUtil = build_NodeUtil(this);
+
+
 			this.nodes.push({
 				id : 'red-box',
 				x  : 100,
 				y  : 0,
-				width  : 100,
+				width  : 25,
 				height : 100,
 				color  : 'red',
+				node_collides: false,
 				direction : 0
 			});
 
@@ -24,22 +546,77 @@
 				id : 'black-box',
 				x  : 50,
 				y  : 0,
-				width  : 150,
-				height : 150,
-				color  : 'black'
+				width  : 25,
+				height : 100,
+				color  : 'black',
+				node_collides: false,
+				// vel_x: 0,
+				// vel_y: 1
 			});
+
+			this.nodes.push({
+				id: 'ball-circle',
+				x: 200,
+				y: 100,
+				shape: "Circle",
+				radius: 10,
+				color: 'green',
+				node_collides: true
+			});
+
+			this.floaters.push(/**@type{Floater}*/({
+				id: "score-left", align: "left", color: "black", font_px: 64, font: "Sans-Serif", type: "text"
+				, value: "0", x: 0, y: 0
+			}));
+
+			this.floaters.push(/**@type{Floater}*/({
+				id: "score-right", align: "left", color: "black", font_px: 64, font: "Sans-Serif", type: "text"
+				, value: "0", x: 0, y: 0
+			}));
+			
+			this.floaters.push(/**@type{Floater}*/({
+				id: "info-text", align: "center", color: "black", font_px: 48, font: "Sans-Serif", type: "text"
+				, value: "", x: 0, y: 0, hidden: true
+			}));
+
+			Game.reload_res_settings(this);
+			Game.set_info_text(this, "Start: Press Space.");
+			Game.show_info_text(this);
 		};
 
 		app.onUpdate = function(time){
-			this.getNode('black-box').y++;
 
-			if(Math.cos(this.timestamp / 100) > 0){
-				this.getNode('red-box').direction = -1;
-			}else{
-				this.getNode('red-box').direction = 1;
+			// Again, not touching app.js. I'd prefer that onUpdate occur
+			// after initialization, not before it (app.js line 22 & 23 being swapped).
+			// So this is a clunky workaround that adds another boolean check to the sensitive update function. 
+			// I could fall back to global variable assumptions (easiest, but not the best for long-term if there's more work to be done in app.onInit)
+			// or I could wrap app.onInit and app.onUpdate in its own init, but that would appear redundant at first glance. Consider this a TODO.
+			if(NodeUtil == undefined) return;
+			if(this.paused) return;
+
+			for(let player_node of [Game.get_player_node(this, Game.PlayerLeft), Game.get_player_node(this, Game.PlayerRight)]) {
+				let m_pn_move = NodeUtil.process_velocity(player_node);
+				if(m_pn_move.c == "OUT_OF_BOUNDS") {
+					NodeUtil.set_xy_vel(player_node, {y: 0});
+				}
 			}
 
-			this.getNode('red-box').x+=this.getNode('red-box').direction;
+			/**@type {MovingNode} */
+			let ball_n = app.getNode(Game.Ball.node_name);
+			let m_ball_move = NodeUtil.process_velocity(ball_n, true);
+			if(m_ball_move.c == "NODE_COLLISION"){
+				let {new_velocity} = NodeUtil.bounce_hard(ball_n, m_ball_move.detail);
+				NodeUtil.set_xy_vel(ball_n, new_velocity);
+			}else if(m_ball_move.c == "OUT_OF_BOUNDS") {
+				if(m_ball_move.reason == "Y") {
+					let {new_velocity} = NodeUtil.bounce_biased(ball_n, "x", m_ball_move.reason, Game.Settings.x_bounce_bias);
+					NodeUtil.set_xy_vel(ball_n, new_velocity);
+				}else{
+					// Point
+					Game.handle_ball_leave_bounds(this, ball_n.x);
+				}
+			}
+
 		};
 	</script>
 </body>
