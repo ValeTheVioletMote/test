@@ -270,12 +270,12 @@
 		/**@type{ReturnType<build_NodeUtil>}*/
 		var NodeUtil;
 
-		/**@typedef {{node_name: string, score: number, player_name: string, controls: {Up: string, Down: string}}} Player*/
+		/**@typedef {{node_name: string, score: number, player_name: string, controls: {Up: string, Down: string}, score_floater_name: string}} Player*/
 
 
 		var Game = {
 			Settings: {
-				speed: {players:15, ball: 10}
+				info_text_fl: "info-text"
 			},
 			/**@type{Player}*/
 			PlayerLeft: {
@@ -286,6 +286,7 @@
 					Up: "KeyW"
 				,	Down: "KeyS"
 				}
+			,	score_floater_name: "score-left"
 			},
 			/**@type{Player}*/
 			PlayerRight: {
@@ -296,12 +297,19 @@
 					Up: "ArrowUp"
 				,	Down: "ArrowDown"
 				}
+			,	score_floater_name: "score-right"
 			},
 			/**@param {Player} player
 			 * @returns {MovingNode}
 			*/
 			get_player_node (app, player) {
 				return app.getNode(player.node_name);
+			},
+			/**@param {Player} player
+			 * @returns {Floater}
+			*/
+			get_player_score_floater(app, player) {
+				return app.getFloater(player.score_floater_name);
 			},
 			Ball: {
 				node_name: "ball-circle"
@@ -335,9 +343,51 @@
 				ball_n.x = (0.5*app.width) - half_r;
 				ball_n.y = (0.5*app.height) - half_r;
 			},
+			reset_score_positions(app) {
+				let left = Game.get_player_score_floater(app, Game.PlayerLeft);
+				let right = Game.get_player_score_floater(app, Game.PlayerRight);
+				let one_segment_x = 0.125*app.width;
+				let half_x = 0.5*app.width;
+				let margin_down = Math.max(left.font_px, right.font_px);
+				left.y = margin_down; right.y = margin_down;
+				left.x = half_x - one_segment_x - left.font_px;
+				right.x = half_x + one_segment_x;
+			},
 			reset_all_positions(app) {
 				Game.reset_player_positions(app);
 				Game.reset_ball_position(app);
+				Game.reset_score_positions(app);
+				Game.reset_info_text(app);
+			},
+			reset_scores(app) {
+				Game.PlayerLeft.score = 0;
+				Game.PlayerRight.score = 0;
+				Game.get_player_score_floater(app, Game.PlayerLeft).value = "0";
+				Game.get_player_score_floater(app, Game.PlayerRight).value = "0";
+			},
+			/**@returns {Floater} */
+			get_info_text_floater(app) {
+				return app.getFloater(Game.Settings.info_text_fl);
+			},
+			reset_info_text(app) {
+				let gitfl = Game.get_info_text_floater(app);
+				gitfl.hidden = true;
+				gitfl.value = "";
+				// let one_segment_x = 0.125*app.width;
+				let half_x = 0.5*app.width;
+				// gitfl.x = half_x - one_segment_x;
+				gitfl.x = half_x;
+				gitfl.y = app.height - gitfl.font_px;
+			},
+			show_info_text(app){
+				Game.get_info_text_floater(app).hidden = false;
+			},
+			hide_info_text(app) {
+				Game.get_info_text_floater(app).hidden = true;
+			},
+			set_info_text(app, text) {
+				Game.get_info_text_floater(app).value = text;
+			},
 			},
 			get_control_request_info(control_code) {
 				var found_player, direction;
@@ -369,10 +419,13 @@
 			// My edits to app that are not, as part of the readme instructions, permitted to be added to app.js
 
 			this.paused = false;
-			this.pause = function pause_app() {
+			this.pause = function pause_app(pause_txt = "Paused - Press Space") {
+				Game.set_info_text(this, pause_txt);
+				Game.show_info_text(this);
 				this.paused = true;
 			}
 			this.unpause = function unpause_app() {
+				Game.hide_info_text(this);
 				this.paused = false;
 			}
 			this.toggle_pause = function toggle_app_pause() {
@@ -460,9 +513,26 @@
 				node_collides: true,
 				vel_x: 1*Game.Settings.speed.ball,
 				vel_y: 0
-			})
+			});
+
+			this.floaters.push(/**@type{Floater}*/({
+				id: "score-left", align: "left", color: "black", font_px: 64, font: "Sans-Serif", type: "text"
+				, value: "0", x: 0, y: 0
+			}));
+
+			this.floaters.push(/**@type{Floater}*/({
+				id: "score-right", align: "left", color: "black", font_px: 64, font: "Sans-Serif", type: "text"
+				, value: "0", x: 0, y: 0
+			}));
+			
+			this.floaters.push(/**@type{Floater}*/({
+				id: "info-text", align: "center", color: "black", font_px: 48, font: "Sans-Serif", type: "text"
+				, value: "", x: 0, y: 0, hidden: true
+			}));
 
 			Game.reset_all_positions(this);
+			Game.set_info_text(this, "Start: Press Space.");
+			Game.show_info_text(this);
 		};
 
 		app.onUpdate = function(time){
