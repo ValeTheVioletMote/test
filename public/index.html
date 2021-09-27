@@ -325,7 +325,10 @@
 				document.getElementById("canvas").width = width;
 				app.height = height; app.width = width;
 				app.clear();
-				// TODO: adjust app nodes accordingly.
+				// Simplest way is to have the game reset the round and halt.
+				// When called during initial setup, this effectively does nothing, which is what we want.
+				Game.reset_all_positions(app);
+				app.pause("Game Resized. Press Space.")
 			},
 			reset_player_positions(app) {
 				let left = Game.get_player_node(app, Game.PlayerLeft);
@@ -388,6 +391,15 @@
 			set_info_text(app, text) {
 				Game.get_info_text_floater(app).value = text;
 			},
+			/**@param {number} ball_x */
+			handle_ball_leave_bounds(app, ball_x) {
+				/**@type {"left" | "right"}*/
+				let boundary = ball_x > app.width/2 ? "right" : "left"; 
+				let winning_player =  boundary == "right" ? Game.PlayerLeft : Game.PlayerRight;
+				winning_player.score += 1;
+				let winning_floater = Game.get_player_score_floater(app, winning_player).value = String(winning_player.score);
+				Game.reset_ball_position(app);
+				app.pause("Player "+winning_player.player_name+" scores! Press Space.");
 			},
 			get_control_request_info(control_code) {
 				var found_player, direction;
@@ -564,7 +576,7 @@
 					NodeUtil.set_xy_vel(ball_n, new_velocity);
 				}else{
 					// Point
-					Game.reset_ball_position(this);
+					Game.handle_ball_leave_bounds(this, ball_n.x);
 				}
 			}
 
