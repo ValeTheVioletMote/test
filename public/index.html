@@ -274,7 +274,32 @@
 
 		var Game = {
 			Settings: {
-				info_text_fl: "info-text"
+				// Seems optimal for 1024x768
+				speed: {players:10, ball: 8},
+				info_text_fl: "info-text",
+				x_bounce_bias: 10
+			},
+			/**@param {{width: number, height: number}} new_resolution
+			*/
+			settings_for_resolution(new_resolution) {
+
+				// Width determines the speed. Height determines the bounce bias.
+				// These settings work very well on 1024x768.
+				const base_speed = {players: 10, ball: 8}, base_bias = 10, base_width = 1024, base_height = 768;
+				
+				const speed_shift = Math.floor(10*new_resolution.width/base_width)/10;
+				const speed = {players: base_speed.players * speed_shift, ball: base_speed.ball*speed_shift};
+				const bias_shift = Math.floor(10*base_height/new_resolution.height)/10;
+				const x_bounce_bias = base_bias * bias_shift;
+				return {speed, x_bounce_bias};
+			},
+			reload_res_settings(app) {
+				const {height, width} = app;
+				let {speed, x_bounce_bias} = Game.settings_for_resolution({height, width});
+				Game.Settings.speed = speed;
+				Game.Settings.x_bounce_bias = x_bounce_bias;
+				Game.reset_all_positions(app);
+				Game.reset_ball_velocity(app);
 			},
 			/**@type{Player}*/
 			PlayerLeft: {
@@ -326,7 +351,7 @@
 				app.clear();
 				// Simplest way is to have the game reset the round and halt.
 				// When called during initial setup, this effectively does nothing, which is what we want.
-				Game.reset_all_positions(app);
+				Game.reload_res_settings(app);
 				app.pause("Game Resized. Press Space.")
 			},
 			reset_player_positions(app) {
@@ -344,6 +369,12 @@
 				let half_r = 0.5*ball_n.radius;
 				ball_n.x = (0.5*app.width) - half_r;
 				ball_n.y = (0.5*app.height) - half_r;
+			},
+			reset_ball_velocity(app) {
+				let ball_n = app.getNode(Game.Ball.node_name);
+				let starting_ball_dir = Math.cos(this.timestamp / 100) > 0 ? 1 : -1;
+				ball_n.vel_x = starting_ball_dir*Game.Settings.speed.ball
+				ball_n.vel_y = 0;
 			},
 			reset_score_positions(app) {
 				let left = Game.get_player_score_floater(app, Game.PlayerLeft);
@@ -514,8 +545,6 @@
 				// vel_y: 1
 			});
 
-			let starting_ball_dir = Math.cos(this.timestamp / 100) > 0 ? 1 : -1;
-
 			this.nodes.push({
 				id: 'ball-circle',
 				x: 200,
@@ -523,9 +552,7 @@
 				shape: "Circle",
 				radius: 10,
 				color: 'green',
-				node_collides: true,
-				vel_x: starting_ball_dir*Game.Settings.speed.ball,
-				vel_y: 0
+				node_collides: true
 			});
 
 			this.floaters.push(/**@type{Floater}*/({
@@ -543,7 +570,7 @@
 				, value: "", x: 0, y: 0, hidden: true
 			}));
 
-			Game.reset_all_positions(this);
+			Game.reload_res_settings(this);
 			Game.set_info_text(this, "Start: Press Space.");
 			Game.show_info_text(this);
 		};
@@ -573,7 +600,7 @@
 				NodeUtil.set_xy_vel(ball_n, new_velocity);
 			}else if(m_ball_move.c == "OUT_OF_BOUNDS") {
 				if(m_ball_move.reason == "Y") {
-					let {new_velocity} = NodeUtil.bounce_biased(ball_n, "x", m_ball_move.reason, 10);
+					let {new_velocity} = NodeUtil.bounce_biased(ball_n, "x", m_ball_move.reason, Game.Settings.x_bounce_bias);
 					NodeUtil.set_xy_vel(ball_n, new_velocity);
 				}else{
 					// Point
